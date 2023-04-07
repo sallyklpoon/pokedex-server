@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const requestSchema = new mongoose.Schema({
     username: {
         type: String,
-        required: true
+        default: 'unauthorized'
     },
     endpoint: {
         type: String,
