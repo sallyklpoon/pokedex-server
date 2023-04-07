@@ -9,7 +9,7 @@ const start = asyncWrapper( async () => {
     await connectDB({ "refreshPoke": false });
 
     app.listen(process.env.AUTH_SERVER_PORT, async () => {
-        console.log(`Authorization Server started on port ${process.env.AUTH_SERVER_PORT}`);
+        console.log(`Server started on port ${process.env.AUTH_SERVER_PORT}`);
     });
 })
 

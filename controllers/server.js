@@ -5,13 +5,16 @@ const jwt = require('jsonwebtoken');
 const { asyncWrapper } = require('../helpers/asyncWrapper.js');
 const User = require('../models/user');
 const Token = require('../models/token');
-const { parseRefreshToken } = require('../helpers/parseTokens.js');
+const Pokemon = require('../models/pokemon');
+const { parseAccessToken } = require('../helpers/parseTokens');
+const { setAccessToken } = require('../helpers/cookie.js');
 
 const dotenv = require('dotenv');
 dotenv.config();
 
-const TOKEN_HEADER = 'Authorization';
-const ACCESS_EXPIRY = '20s';
+const REFRESH_TOKEN_HEADER = 'auth-token-refresh';
+const ACCESS_TOKEN_HEADER = 'auth-token-access';
+const ACCESS_EXPIRY = '20';
 
 const {
     PokemonAuthError,
@@ -21,13 +24,41 @@ const {
 const app = express();
 app.use(express.json());
 app.use(cors({
-    expoesdHeaders: [TOKEN_HEADER]
+    origin: '*',
+    exposedHeaders: [REFRESH_TOKEN_HEADER, ACCESS_TOKEN_HEADER],
 }));
 
 const hashedPassword = async password => {
     const salt = await bcrypt.genSalt(10);
     return await bcrypt.hash(password, salt);
 };
+
+const authUser = asyncWrapper(async (req, res, next) => {
+    const token = req.header('authorization');
+    if (!token) {
+        throw new PokemonAuthError("No Token: Please provide the access token using the headers.");
+    }
+
+    const accessToken = await parseAccessToken(token);
+    try {
+        const verified = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET)
+        next();
+    } catch (err) {
+        throw new PokemonAuthError("Invalid Token Verification. Log in again.");
+    }
+});
+
+const authAdmin = asyncWrapper(async (req, res, next) => {
+    const token = req.header('authorization');
+    const accessToken = await parseAccessToken(token);
+
+    const payload = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
+    console.log(payload);
+    if (payload?.user?.role == "admin") {
+        return next();
+    }
+    throw new PokemonAuthError("Access denied");
+});
 
 app.post('/register', asyncWrapper(async (req, res) => {
     const { username, password, email, role } = req.body;
@@ -48,7 +79,6 @@ app.post('/register', asyncWrapper(async (req, res) => {
 }));
 
 app.post('/login', asyncWrapper(async (req, res) => {
-
     const { username, password } = req.body;
     if (!username || !password) throw new PokemonAuthError("Incorrect Payload");
 
@@ -64,13 +94,15 @@ app.post('/login', asyncWrapper(async (req, res) => {
 
     Token.create({ token: refreshToken, valid: true });
 
-    res.header(TOKEN_HEADER, `BEARER ${accessToken} REFRESH ${refreshToken}`);
+    res.header(ACCESS_TOKEN_HEADER, accessToken);
+    res.header(REFRESH_TOKEN_HEADER, refreshToken);
     res.send(user);
 }));
 
 app.get('/logout', asyncWrapper(async (req, res) => {
     try {
-        const refreshToken = await parseRefreshToken(req.headers.authorization);
+        const refreshToken = req.headers[REFRESH_TOKEN_HEADER];
+        console.log(refreshToken);
 
         let invalidateToken = await Token.findOneAndDelete({ token: refreshToken });
         if (invalidateToken) {
@@ -87,33 +119,61 @@ app.get('/logout', asyncWrapper(async (req, res) => {
 }));
 
 app.post('/requestNewAccessToken', asyncWrapper(async (req, res) => {
-    const token = req.header(TOKEN_HEADER);
+    const token = req.header.REFRESH_TOKEN_HEADER;
 
     if (!token) {
         throw new PokemonAuthError("No token: Please provide a token.");
     }
     const refreshToken = await parseRefreshToken(token);
     if (!refreshToken) {
-        throw new PokemonAuthError("A: Invalid Token: Please provide a valid token.");
+        throw new PokemonAuthError("Invalid Token: Refresh token not found. Please provide a valid token.");
     }
 
     const foundToken = await Token.findOne({ token: refreshToken });
     if (!foundToken) {
-        throw new PokemonAuthError("B: Invalid Token: Please provide a valid token.");
+        throw new PokemonAuthError("Invalid Token: Token not found. Please provide a valid token.");
     }
     try {
         const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
         const newAccessToken = jwt.sign({ user: payload.uesr }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_EXPIRY });
-        res.header(TOKEN_HEADER, `BEARER ${newAccessToken}`);
+        res.header(ACCESS_TOKEN_HEADER, newAccessToken);
         res.send("All good!");
     } catch (e) {
-        throw new PokemonAuthError("C: Invalid Token: Please provide a valid token.");
+        throw new PokemonAuthError("Invalid Token: Please provide a valid token.");
     };
 }));
 
+
+// app.use(authUser);
+/**
+ * Get all pokemons based on filters of count and after.
+ */
+app.get('/pokemons', async (req, res) => {
+    try {
+        const pokemonUrl = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/pokedex.json';
+        const pokemonRes = await fetch(pokemonUrl);
+        let pokemonData = await pokemonRes.json();
+        res.status(200).json(pokemonData);
+    } catch (err) {
+        throw new PokemonDbError('Error retreiving pokemons. Please try again.')
+    }
+});
+
+app.get('/pokemonTypes', async (req, res) => {
+    try {
+        const typesUrl = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/types.json';
+        const typesRes = await fetch(typesUrl);
+        let typesData = await typesRes.json();
+        res.status(200).json(typesData);
+    } catch (err) {
+        throw new PokemonDbError('Error retrieving types. Please try again.')
+    }
+});
+
+
 app.use((_req, res) => {
     res.status(404).json({
-        msg: "Improper route. Check API docs plz."
+        msg: "Improper route."
     });
 });
 
