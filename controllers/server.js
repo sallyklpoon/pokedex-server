@@ -54,15 +54,6 @@ const authUser = async accessToken => {
     }
 };
 
-const authAdmin = async accessToken => {
-    const payload = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
-    console.log(payload);
-    if (payload?.user?.role == "admin") {
-        return next();
-    }
-    throw new PokemonAuthError("Access denied");
-};
-
 app.post('/register', asyncWrapper(async (req, res) => {
     const { username, password, email, role } = req.body;
     const hashPword = await hashedPassword(password);
@@ -197,8 +188,11 @@ app.post('/request/create', async (req, res) => {
 });
 
 app.get('/adminReports/uniqueUsers', async (req, res) => {
-    // authUser(req.headers['auth-token-access']);
-    // authAdmin(req.headers['auth-token-access']);
+    authUser(req.headers['auth-token-access']);
+    if (!req.headers['user-role'] || !req.headers['user-role'] == 'admin') {
+        res.status(403).send('Pokemon Auth Error: Forbidden Access.');
+    };
+    
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     try {
@@ -217,8 +211,11 @@ app.get('/adminReports/uniqueUsers', async (req, res) => {
 });
 
 app.get('/adminReports/topUsers', async (req, res) => {
-    // authUser(req.headers['auth-token-access']);
-    // authAdmin(req.headers['auth-token-access']);
+    authUser(req.headers['auth-token-access']);
+    if (!req.headers['user-role'] || !req.headers['user-role'] == 'admin') {
+        res.status(403).send('Pokemon Auth Error: Forbidden Access.');
+    };
+
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     let topUsers = [];
 
@@ -237,8 +234,11 @@ app.get('/adminReports/topUsers', async (req, res) => {
 });
 
 app.get('/adminReports/endpointTop', async (req, res) => {
-    // authUser(req.headers['auth-token-access']);
-    // authAdmin(req.headers['auth-token-access']);
+    authUser(req.headers['auth-token-access']);
+    if (!req.headers['user-role'] || !req.headers['user-role'] == 'admin') {
+        res.status(403).send('Pokemon Auth Error: Forbidden Access.');
+    };
+
     try {
         const logs = await Request.aggregate([
             // Group documents by endpoint and username, and count the number of documents for each username in each endpoint group
@@ -261,9 +261,11 @@ app.get('/adminReports/endpointTop', async (req, res) => {
     }
 });
 
-app.get('/adminReports/4xxErrors', async (req, res) => {
-    // authUser(req.headers['auth-token-access']);
-    // authAdmin(req.headers['auth-token-access']);
+app.get('/adminReports/endpoint4xxErrors', async (req, res) => {
+    authUser(req.headers['auth-token-access']);
+    if (!req.headers['user-role'] || !req.headers['user-role'] == 'admin') {
+        res.status(403).send('Pokemon Auth Error: Forbidden Access.');
+    };
 
     try {
         const logs = await Request.aggregate([
@@ -293,8 +295,11 @@ app.get('/adminReports/4xxErrors', async (req, res) => {
 });
 
 app.get('/adminReports/recentErrors', async (req, res) => {
-    // authUser(req.headers['auth-token-access']);
-    // authAdmin(req.headers['auth-token-access']);
+    authUser(req.headers['auth-token-access']);
+    if (!req.headers['user-role'] || !req.headers['user-role'] == 'admin') {
+        res.status(403).send('Pokemon Auth Error: Forbidden Access.');
+    };
+
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     try {
@@ -331,4 +336,3 @@ app.use((_req, res) => {
 });
 
 module.exports = app;
-
