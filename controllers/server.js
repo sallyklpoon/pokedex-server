@@ -5,9 +5,7 @@ const jwt = require('jsonwebtoken');
 const { asyncWrapper } = require('../helpers/asyncWrapper.js');
 const User = require('../models/user');
 const Token = require('../models/token');
-const Pokemon = require('../models/pokemon');
 const Request = require('../models/request.js');
-const { parseAccessToken } = require('../helpers/parseTokens');
 
 const dotenv = require('dotenv');
 dotenv.config();

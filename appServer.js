@@ -1,6 +1,7 @@
 const app = require('./controllers/server');
 const { connectDB } = require('./helpers/connectDB');
 const { asyncWrapper } = require('./helpers/asyncWrapper');
+const PORT = process.env.PORT || 6001;
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -8,8 +9,8 @@ dotenv.config();
 const start = asyncWrapper( async () => {
     await connectDB({ "refreshPoke": false });
 
-    app.listen(process.env.AUTH_SERVER_PORT, async () => {
-        console.log(`Server started on port ${process.env.AUTH_SERVER_PORT}`);
+    app.listen(PORT, async () => {
+        console.log(`Server started on port ${PORT}`);
     });
 })
 
