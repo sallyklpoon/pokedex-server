@@ -138,7 +138,7 @@ app.get('/requestNewAccessToken', asyncWrapper(async (req, res) => {
  */
 app.get('/pokemons', async (req, res) => {
     let accessToken = req.headers['auth-token-access'];
-    await authUser(accessToken);
+    authUser(accessToken);
 
     try {
         const pokemonUrl = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/pokedex.json';
