@@ -11,7 +11,7 @@ const requestSchema = new mongoose.Schema({
     },
     accessedAt: {
         type: Date,
-        default: Date.now
+        default: Date.now()
     },
     status: {
         type: Number,

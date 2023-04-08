@@ -30,7 +30,7 @@ app.use(cors({
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Headers', '*');
     next();
-  });
+});
 
 const hashedPassword = async password => {
     const salt = await bcrypt.genSalt(10);
@@ -194,7 +194,134 @@ app.post('/request/create', async (req, res) => {
     } catch (err) {
         res.status(501).send('Pokemon DB error: error tracking endpoint request.')
     }
-})
+});
+
+app.get('/adminReports/uniqueUsers', async (req, res) => {
+    // authUser(req.headers['auth-token-access']);
+    // authAdmin(req.headers['auth-token-access']);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    try {
+        const logs = await Request.aggregate([
+            // // Match documents with a date greater than or equal to the start time
+            { $match: { accessedAt: { $gte: oneDayAgo }, username: { $ne: 'unauthorized-user' } } },
+            // Group documents by username and count the number of documents for each username
+            { $group: { _id: '$username', count: { $sum: 1 } } }
+        ]);
+        const usernames = logs.map(item => item._id);
+        res.status(200).send(usernames);
+    } catch (err) {
+        console.log(err);
+        res.status(400).send('Error retreiving report :(');
+    }
+});
+
+app.get('/adminReports/topUsers', async (req, res) => {
+    // authUser(req.headers['auth-token-access']);
+    // authAdmin(req.headers['auth-token-access']);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    let topUsers = [];
+
+    try {
+        const logs = await Request.aggregate([
+            { $match: { accessedAt: { $gte: oneDayAgo }, username: { $ne: 'unauthorized-user' } } },
+            { $group: { _id: '$username', count: { $sum: 1 } } },
+            { $sort: { count: -1 } }
+        ]);
+        res.status(200).send(logs);
+    } catch (err) {
+        console.log(err);
+        res.status(400).send('Error retreiving report :(');
+    }
+
+});
+
+app.get('/adminReports/endpointTop', async (req, res) => {
+    // authUser(req.headers['auth-token-access']);
+    // authAdmin(req.headers['auth-token-access']);
+    try {
+        const logs = await Request.aggregate([
+            // Group documents by endpoint and username, and count the number of documents for each username in each endpoint group
+            { $group: { _id: { endpoint: '$endpoint', username: '$username' }, count: { $sum: 1 } } },
+            // Group the result by endpoint and push each username/count pair into an array
+            { $group: { _id: '$_id.endpoint', users: { $push: { username: '$_id.username', count: '$count' } } } },
+        ]);
+
+        const endpointTopUsers = logs.map(log => {
+            return {
+                "endpoint": log._id,
+                "user": log.users.sort((a, b) => b.count - a.count)[0]
+            }
+        })
+
+        res.status(200).send(endpointTopUsers);
+    } catch (err) {
+        console.log(err);
+        res.status(400).send('Error retreiving report :(');
+    }
+});
+
+app.get('/adminReports/4xxErrors', async (req, res) => {
+    // authUser(req.headers['auth-token-access']);
+    // authAdmin(req.headers['auth-token-access']);
+
+    try {
+        const logs = await Request.aggregate([
+            { $match: { status: { $gte: 400, $lt: 500 } } },
+            {
+                $group: {
+                    _id: {
+                        endpoint: "$endpoint",
+                        accessedAt: "$accessedAt",
+                        status: "$status"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: {
+                    "_id.accessedAt": -1
+                }
+            }
+        ]);
+        res.status(200).send(logs);
+    } catch (err) {
+        console.log(err);
+        res.status(400).send('Error retreiving report :(');
+    }
+
+});
+
+app.get('/adminReports/recentErrors', async (req, res) => {
+    // authUser(req.headers['auth-token-access']);
+    // authAdmin(req.headers['auth-token-access']);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    try {
+        const logs = await Request.aggregate([
+            { $match: { status: { $gte: 500, $lt: 600 }, accessedAt: { $gte: oneDayAgo } } },
+            {
+                $group: {
+                    _id: {
+                        endpoint: "$endpoint",
+                        accessedAt: "$accessedAt",
+                        status: "$status"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: {
+                    "_id.accessedAt": -1
+                }
+            }
+        ]);
+        res.status(200).send(logs);
+    } catch (err) {
+        console.log(err);
+        res.status(400).send('Error retreiving report :(');
+    }
+});
 
 
 app.use((_req, res) => {
