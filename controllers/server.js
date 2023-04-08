@@ -6,6 +6,7 @@ const { asyncWrapper } = require('../helpers/asyncWrapper.js');
 const User = require('../models/user');
 const Token = require('../models/token');
 const Request = require('../models/request.js');
+const Pokemon = require('../models/pokemon.js');
 
 const dotenv = require('dotenv');
 dotenv.config();
@@ -141,12 +142,10 @@ app.get('/pokemons', async (req, res) => {
     authUser(accessToken);
 
     try {
-        const pokemonUrl = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/pokedex.json';
-        const pokemonRes = await fetch(pokemonUrl);
-        let pokemonData = await pokemonRes.json();
-        res.status(200).json(pokemonData);
+        const pokemonRes = await Pokemon.find();
+        res.status(200).json(pokemonRes);
     } catch (err) {
-        throw new PokemonDbError('Error retreiving pokemons. Please try again.')
+        res.status(404).send('Error retreiving pokemons. Please try again.');
     }
 });
 
